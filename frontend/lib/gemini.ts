@@ -9,12 +9,12 @@ import { GoogleGenAI } from '@google/genai'; // C# の HttpClient 相当のSDK�
 
 /**
  * 使用するモデル名。
- * gemini-2.0-flash-lite を使う理由:
- * - gemini-1.5-flash は 2025年末頃に v1/v1beta API から廃止された
- * - gemini-2.0-flash は無料枠のクォータが 0（有料プランのみ）
- * - gemini-2.0-flash-lite は Gemini 2.0 世代の最軽量モデルで無料枠が存在する
+ * gemini-2.5-flash を使う理由:
+ * - gemini-1.5-flash は API から廃止（404）
+ * - gemini-2.0-flash-lite は Free Tier クォータが 0（有料プランのみ）
+ * - gemini-2.5-flash は 2026年現在の標準無料枠モデルで、要約タスクに十分な性能を持つ
  */
-const MODEL_NAME = 'gemini-2.0-flash-lite';
+const MODEL_NAME = 'gemini-2.5-flash-lite';
 
 /**
  * 要約生成プロンプトのテンプレート。
