@@ -1,15 +1,17 @@
 // --- ニュース同期パイプライン ---
 // 以下の一連の処理を順番に実行するエントリーポイントスクリプト。
 //
-//   [Step 1] News API からテックニュースを取得
+//   [Step 1]   News API からテックニュースを取得
 //       ↓
-//   [Step 2] DB に upsert（status: pending で保存、重複はスキップ）
+//   [Step 2]   DB に upsert（status: pending で保存、重複はスキップ）
 //       ↓
-//   [Step 3] pending 記事を 1 件取得
+//   [Step 3]   pending 記事を 1 件取得
 //       ↓
-//   [Step 4] Gemini 1.5 Flash で要約
+//   [Step 3.5] 元記事 URL をスクレイピングして全文取得（失敗時は部分テキストで代替）
 //       ↓
-//   [Step 5] DB を更新（summary を保存、status: summarized に変更）
+//   [Step 4]   Gemini で要約（スクレイピング全文 or 部分テキストを使用）
+//       ↓
+//   [Step 5]   DB を更新（全文・summary 保存、status: summarized に変更）
 //
 // 実行方法:
 //   docker compose run --rm frontend npx tsx scripts/sync-news.ts
@@ -20,6 +22,7 @@
 import { PrismaClient } from '@prisma/client';
 import { fetchTechNews } from '../lib/newsApi';
 import { summarizeArticle } from '../lib/gemini';
+import { scrapeArticleContent } from '../lib/scraper';
 
 // --- メイン処理 ---
 
@@ -101,12 +104,35 @@ async function main(): Promise<void> {
 
     console.log(`  → 対象: ${target.title}\n`);
 
-    // ── Step 4: Gemini 1.5 Flash で要約 ───────────────────────────────
-    console.log('【Step 4】 Gemini 1.5 Flash で要約中...');
+    // ── Step 3.5: 元記事URLから本文をスクレイピング ───────────────────
+    // News API 無料プランは本文を先頭200文字程度しか返さない。
+    // 要約品質を高めるため元ページにアクセスして全文を取得する。
+    // 失敗した場合は News API の部分テキストにフォールバックする。
+    console.log('【Step 3.5】 元記事の本文をスクレイピング中...');
+    const scrapedContent = await scrapeArticleContent(target.url);
+
+    let contentForSummary: string | null;
+    if (scrapedContent) {
+      console.log(`  → スクレイピング成功 (${scrapedContent.length}文字)\n`);
+      contentForSummary = scrapedContent;
+
+      // スクレイピングで取得した本文を DB に保存する。
+      // 次回の再実行時に再スクレイピングせずに済むようにするための永続化。
+      await prisma.article.update({
+        where: { id: target.id },
+        data: { content: scrapedContent },
+      });
+    } else {
+      console.log(`  → スクレイピング失敗。News API の部分テキストで代替します\n`);
+      contentForSummary = target.content;
+    }
+
+    // ── Step 4: Gemini で要約 ──────────────────────────────────────────
+    console.log('【Step 4】 Gemini で要約中...');
 
     let summary: string;
     try {
-      summary = await summarizeArticle(target.title, target.content);
+      summary = await summarizeArticle(target.title, contentForSummary);
       console.log('  → 要約生成完了\n');
     } catch (err) {
       // 要約失敗時は error ステータスに更新して処理を終了する。

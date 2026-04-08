@@ -150,7 +150,9 @@ export async function fetchTechNews(
     .map(
       (article): ArticleInput => ({
         title: article.title,
-        url: article.url,
+        // News API が返す URL に HTML エンティティ（&amp; 等）が混入するケースがある。
+        // そのままスクレイピングに使うと 404 になるため、デコードして正規の URL に戻す。
+        url: article.url.replace(/&amp;/g, '&'),
         // content と description が両方存在する場合は content を優先する。
         // content のほうが本文に近い情報を持つが、null の場合は description で補完する。
         content: article.content ?? article.description ?? null,
