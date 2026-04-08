@@ -1,5 +1,3 @@
-version: '3.9'
-
 # --- サービス定義 ---
 # docker compose up で frontend / backend / db の3サービスが同時に起動する構成。
 # ホストマシンには Node.js / Python / PostgreSQL をインストールせず、

@@ -6,8 +6,9 @@ FROM node:20-alpine
 WORKDIR /app
 
 # --- システム依存パッケージ ---
-# next.js のビルドに必要な libc6-compat を追加（Alpine の musl libc との互換性確保）
-RUN apk add --no-cache libc6-compat
+# libc6-compat: Next.js のビルドに必要な Alpine の musl libc 互換レイヤー
+# openssl: Prisma の schema engine が OpenSSL を必要とするため追加
+RUN apk add --no-cache libc6-compat openssl
 
 # --- 依存関係のインストール ---
 # package.json と package-lock.json を先にコピーすることで、

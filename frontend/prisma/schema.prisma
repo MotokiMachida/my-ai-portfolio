@@ -1,0 +1,39 @@
+// --- Prisma スキーマ定義 ---
+// DBファースト設計に基づき、すべてのデータはここで一元管理する。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // DATABASE_URL は .env から注入する（ハードコード禁止）
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ニュース記事テーブル ---
+// ワークフロー: pending → summarized → posted
+// statusによって次の処理対象を絞り込み、重複処理を防ぐ（CLAUDE.md §4-2参照）
+model Article {
+  id           String    @id @default(cuid())
+  url          String    @unique // URLはRFC的に一意。重複保存防止のキーとして使用（titleは微妙に変わるケースがあり不適）
+  title        String
+  content      String?   // 記事本文。News APIによっては取得できない場合があるため nullable
+  summary      String?   // Gemini による AI要約結果。summarized ステータス移行後に格納
+  status       Status    @default(pending)
+  source       String?   // ニュースソース名（例: "BBC News", "TechCrunch"）
+  imageUrl     String?   // 記事サムネイル画像URL。投稿時の視覚的情報として使用
+  publishedAt  DateTime? // 元記事の公開日時。nullable はAPIが返さないケースへの対応
+  errorMessage String?   // error ステータス時のエラー詳細。再試行・デバッグ用
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// --- ステータス定義 ---
+// C# の enum に相当（Prisma の enum 型）
+enum Status {
+  pending    // 取得済み・未処理
+  summarized // AI要約済み
+  posted     // 外部投稿済み
+  error      // 処理エラー（再試行対象）
+}
