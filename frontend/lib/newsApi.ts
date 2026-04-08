@@ -7,12 +7,12 @@
 
 /**
  * News API のレスポンス内の1記事を表す型
- * @see https://newsapi.org/docs/endpoints/top-headlines
+ * @see https://newsapi.org/docs/endpoints/everything
  */
 interface NewsApiArticle {
   title: string;
   url: string;
-  /** 記事本文。News APIは先頭200文字程度しか返さない場合がある */
+  /** 記事本文。News API 無料プランは先頭200文字程度しか返さない */
   content: string | null;
   description: string | null;
   publishedAt: string | null;
@@ -44,73 +44,64 @@ export interface ArticleInput {
   publishedAt: Date | null;
 }
 
+// --- 定数定義 ---
+
+/**
+ * 検索キーワード。
+ * OR でつなぐことで複数トピックを一度のリクエストでカバーする。
+ * top-headlines ではなく everything エンドポイントを使う理由:
+ * top-headlines はカテゴリ・国単位の取得のみで、技術キーワードでの絞り込みができない。
+ * everything はキーワード検索に対応しており、エンジニア向け記事に特化できる。
+ */
+const TECH_QUERY =
+  'TypeScript OR React OR Python OR "Next.js" OR "machine learning" OR "LLM"';
+
 // --- ダミーデータ ---
-// NEWS_API_KEY が未設定の場合でもテスト・開発が進められるよう、
-// 本番に近い構造のダミー記事を用意する。
-// 実際の API レスポンス構造に合わせてあるため、切り替えコストがほぼゼロ。
+// NEWS_API_KEY が未設定の場合でもテスト・開発が進められるよう用意する。
+// 実際の API レスポンス構造に合わせてあるため、本番切り替えコストがほぼゼロ。
 const DUMMY_ARTICLES: ArticleInput[] = [
   {
-    title: '【速報】日本のAI開発予算が過去最高を更新、政府が1兆円規模の投資を発表',
-    url: 'https://example.com/news/ai-budget-japan-2026',
+    title: 'TypeScript 5.5 リリース──型推論の大幅強化と新しいユーティリティ型',
+    url: 'https://example.com/news/typescript-5-5-release',
     content:
-      '政府は本日、AI研究開発に対する国家予算として過去最大規模となる1兆円の投資計画を発表した。この予算は今後5年間にわたり、大学・研究機関・スタートアップへ分配される予定だ。',
-    source: 'Tech News Japan',
-    imageUrl: 'https://picsum.photos/seed/ai-budget/800/400',
+      'TypeScript 5.5 がリリースされ、条件型の推論精度が向上した。新たに追加された NoInfer<T> ユーティリティ型により、型推論の意図しない伝播を防げるようになった。',
+    source: 'TypeScript Blog',
+    imageUrl: 'https://picsum.photos/seed/typescript/800/400',
     publishedAt: new Date('2026-04-08T09:00:00+09:00'),
   },
   {
-    title: 'OpenAI、新モデル「GPT-5」を正式リリース──推論能力が大幅向上',
-    url: 'https://example.com/news/openai-gpt5-release',
+    title: 'React 20 のアーキテクチャ変更──Server Components がデフォルトに',
+    url: 'https://example.com/news/react-20-server-components',
     content:
-      'OpenAIは最新言語モデル「GPT-5」の一般提供を開始した。ベンチマークテストでは前モデル比で推論精度が40%向上しており、複雑な数学問題や法律文書の解析で特に顕著な改善が見られる。',
-    source: 'AI Times',
-    imageUrl: 'https://picsum.photos/seed/gpt5/800/400',
-    publishedAt: new Date('2026-04-08T08:30:00+09:00'),
+      'React 20 では Server Components がデフォルト挙動となり、クライアント側のバンドルサイズが平均 40% 削減されることが発表された。',
+    source: 'React Blog',
+    imageUrl: 'https://picsum.photos/seed/react/800/400',
+    publishedAt: new Date('2026-04-08T08:00:00+09:00'),
   },
   {
-    title: 'Googleが量子コンピュータで新記録を達成、従来比1000倍の処理速度',
-    url: 'https://example.com/news/google-quantum-record',
+    title: 'Python 3.14 beta──JIT コンパイラが本格統合、実行速度が 2 倍に',
+    url: 'https://example.com/news/python-314-jit',
     content:
-      'Googleの研究チームは量子コンピュータ「Willow」の後継機で、従来比1000倍の処理速度を達成したと発表した。この進歩により、創薬や材料科学の分野での実用化が一気に現実味を帯びてきた。',
-    source: 'Science Tech Daily',
-    imageUrl: 'https://picsum.photos/seed/quantum/800/400',
+      'Python 3.14 ベータ版で JIT コンパイラが標準搭載された。数値計算ベンチマークでは CPython 3.12 比で約 2 倍の速度向上が確認されている。',
+    source: 'Python.org',
+    imageUrl: 'https://picsum.photos/seed/python/800/400',
     publishedAt: new Date('2026-04-07T18:00:00+09:00'),
-  },
-  {
-    title: 'トヨタ、完全自動運転タクシーの商用運行を東京23区で開始',
-    url: 'https://example.com/news/toyota-autonomous-taxi-tokyo',
-    content:
-      'トヨタ自動車は本日から東京23区全域で完全自動運転タクシーの商用サービスを開始した。安全確保のため当面は同乗オペレーターを配置するが、2027年までに完全無人運行を目指す。',
-    source: 'Automotive Japan',
-    imageUrl: 'https://picsum.photos/seed/toyota/800/400',
-    publishedAt: new Date('2026-04-07T10:00:00+09:00'),
-  },
-  {
-    title: 'Meta、AR眼鏡「Orion 2」を発表──重量80gで終日装着が可能に',
-    url: 'https://example.com/news/meta-orion2-announcement',
-    content:
-      'Metaは次世代AR眼鏡「Orion 2」を正式発表した。重量を初代比50%削減し80gを実現、バッテリー持続時間は12時間に延長された。2026年末に日本を含むグローバル市場で発売予定。',
-    source: 'Gadget Watch',
-    imageUrl: 'https://picsum.photos/seed/meta-ar/800/400',
-    publishedAt: new Date('2026-04-06T20:00:00+09:00'),
   },
 ];
 
 // --- API 呼び出し ---
 
 /**
- * News API からトップヘッドライン記事を取得する。
+ * News API の /v2/everything エンドポイントからテックニュースを取得する。
  *
  * 環境変数 NEWS_API_KEY が未設定の場合はダミーデータを返す。
  * これにより、APIキー取得前でも開発・テストのフローを止めずに進められる。
  *
- * @param country - 取得対象の国コード（デフォルト: 'jp'）
  * @param pageSize - 取得件数（デフォルト: 10、最大: 100）
  * @returns 正規化済みの記事リスト
  * @throws {Error} News API がエラーステータスを返した場合
  */
-export async function fetchTopHeadlines(
-  country: string = 'jp',
+export async function fetchTechNews(
   pageSize: number = 10
 ): Promise<ArticleInput[]> {
   const apiKey = process.env.NEWS_API_KEY;
@@ -124,9 +115,15 @@ export async function fetchTopHeadlines(
     return DUMMY_ARTICLES;
   }
 
+  // sortBy=publishedAt: 最新記事を優先して取得する。
+  // language=en: 技術記事は英語が多く、日本語記事は少ないため英語に絞る。
   const url =
-    `https://newsapi.org/v2/top-headlines` +
-    `?country=${country}&pageSize=${pageSize}&apiKey=${apiKey}`;
+    `https://newsapi.org/v2/everything` +
+    `?q=${encodeURIComponent(TECH_QUERY)}` +
+    `&language=en` +
+    `&sortBy=publishedAt` +
+    `&pageSize=${pageSize}` +
+    `&apiKey=${apiKey}`;
 
   const response = await fetch(url); // C# の await HttpClient.GetAsync に相当
 
@@ -139,22 +136,29 @@ export async function fetchTopHeadlines(
   const data: NewsApiResponse = await response.json(); // C# の await response.Content.ReadAsAsync<T> に相当
 
   if (data.status !== 'ok') {
-    throw new Error(`News API エラーレスポンス: status=${data.status}`);
+    throw new Error(
+      `News API エラーレスポンス: status=${data.status}, message=${JSON.stringify(data)}`
+    );
   }
 
   // News API のレスポンス構造を DB 保存用の型に正規化する。
   // urlToImage → imageUrl のようにフィールド名を統一し、
   // 呼び出し元が API の詳細を知らなくても済む構造にする。
-  return data.articles.map(
-    (article): ArticleInput => ({
-      title: article.title,
-      url: article.url,
-      // content と description が両方存在する場合は content を優先する。
-      // content のほうが本文に近い情報を持つが、null の場合は description で補完する。
-      content: article.content ?? article.description ?? null,
-      source: article.source.name ?? null,
-      imageUrl: article.urlToImage ?? null,
-      publishedAt: article.publishedAt ? new Date(article.publishedAt) : null,
-    })
-  );
+  // title が "[Removed]" の記事は削除済みコンテンツのため除外する。
+  return data.articles
+    .filter((a) => a.title !== '[Removed]' && a.url !== 'https://removed.com')
+    .map(
+      (article): ArticleInput => ({
+        title: article.title,
+        url: article.url,
+        // content と description が両方存在する場合は content を優先する。
+        // content のほうが本文に近い情報を持つが、null の場合は description で補完する。
+        content: article.content ?? article.description ?? null,
+        source: article.source.name ?? null,
+        imageUrl: article.urlToImage ?? null,
+        publishedAt: article.publishedAt
+          ? new Date(article.publishedAt)
+          : null,
+      })
+    );
 }
