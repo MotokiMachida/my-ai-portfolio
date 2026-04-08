@@ -1,0 +1,20 @@
+# --- Web フレームワーク ---
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# --- データベース ---
+# PostgreSQL ドライバ（psycopg2 は C拡張版で高パフォーマンス）
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.35
+
+# --- 環境変数管理 ---
+# .env ファイルを自動で読み込む（開発環境での秘密情報管理）
+python-dotenv==1.0.1
+
+# --- バリデーション ---
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# --- HTTP クライアント ---
+# 外部API（News API 等）への通信に使用
+httpx==0.27.2

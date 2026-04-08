@@ -1,0 +1,77 @@
+version: '3.9'
+
+# --- サービス定義 ---
+# docker compose up で frontend / backend / db の3サービスが同時に起動する構成。
+# ホストマシンには Node.js / Python / PostgreSQL をインストールせず、
+# すべてコンテナ内に閉じることで環境汚染を防ぐ。
+
+services:
+  # --- フロントエンド (Next.js 14 / Node.js 20) ---
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: portfolio_frontend
+    ports:
+      - '3000:3000'
+    volumes:
+      # ソースコードをホストとコンテナで同期（ホットリロード対応）
+      - ./frontend:/app
+      # node_modules はコンテナ側のものを優先し、ホストの影響を受けないようにする
+      - frontend_node_modules:/app/node_modules
+    environment:
+      - NODE_ENV=development
+      # DB接続URL（Prisma が使用）
+      - DATABASE_URL=${DATABASE_URL}
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: npm run dev
+
+  # --- バックエンド (FastAPI / Python 3.11) ---
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: portfolio_backend
+    ports:
+      - '8000:8000'
+    volumes:
+      # ソースコードをホストとコンテナで同期（ホットリロード対応）
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # --- データベース (PostgreSQL 16) ---
+  db:
+    image: postgres:16-alpine
+    container_name: portfolio_db
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # データを名前付きボリュームで永続化（コンテナ再起動でデータが消えないようにする）
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # frontend / backend が起動前にDBが準備完了しているかを確認する
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# --- ボリューム定義 ---
+volumes:
+  postgres_data:
+  frontend_node_modules:
