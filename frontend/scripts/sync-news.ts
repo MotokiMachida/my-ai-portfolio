@@ -130,10 +130,11 @@ async function main(): Promise<void> {
     // ── Step 4: Gemini で要約 ──────────────────────────────────────────
     console.log('【Step 4】 Gemini で要約中...');
 
-    let summary: string;
+    let result: { titleJa: string; summary: string };
     try {
-      summary = await summarizeArticle(target.title, contentForSummary);
-      console.log('  → 要約生成完了\n');
+      result = await summarizeArticle(target.title, contentForSummary);
+      console.log(`  → 要約生成完了\n`);
+      console.log(`  日本語タイトル: ${result.titleJa}`);
     } catch (err) {
       // 要約失敗時は error ステータスに更新して処理を終了する。
       // エラー内容を DB に保存することで、次回実行時に原因を確認できる。
@@ -146,11 +147,15 @@ async function main(): Promise<void> {
     }
 
     // ── Step 5: DB 更新（summarized に変更） ──────────────────────────
-    console.log('【Step 5】 DB を更新中 (status: summarized)...');
+    console.log('\n【Step 5】 DB を更新中 (status: summarized)...');
 
     const updated = await prisma.article.update({
       where: { id: target.id },
-      data: { summary, status: 'summarized' },
+      data: {
+        titleJa: result.titleJa,
+        summary: result.summary,
+        status: 'summarized',
+      },
     });
 
     console.log('  → DB 更新完了\n');
@@ -159,9 +164,10 @@ async function main(): Promise<void> {
     console.log('╔══════════════════════════════════════╗');
     console.log('║  パイプライン完了 ✓                  ║');
     console.log('╚══════════════════════════════════════╝\n');
-    console.log(`タイトル : ${updated.title}`);
-    console.log(`ステータス: ${updated.status}`);
-    console.log(`ソース   : ${updated.source ?? '不明'}`);
+    console.log(`元タイトル    : ${updated.title}`);
+    console.log(`日本語タイトル: ${updated.titleJa}`);
+    console.log(`ステータス    : ${updated.status}`);
+    console.log(`ソース        : ${updated.source ?? '不明'}`);
     console.log(`\n── 生成された要約 ──`);
     updated.summary?.split('\n').forEach((line) => console.log(`  ${line}`));
     console.log(`────────────────────`);

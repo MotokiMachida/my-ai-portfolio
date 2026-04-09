@@ -14,6 +14,7 @@ import { prisma } from '../../lib/db';
 type ArticleCard = {
   id: string;
   title: string;
+  titleJa: string | null;
   summary: string | null;
   url: string;
   source: string | null;
@@ -36,6 +37,7 @@ async function getSummarizedArticles(): Promise<ArticleCard[]> {
     select: {
       id: true,
       title: true,
+      titleJa: true,
       summary: true,
       url: true,
       source: true,
@@ -133,8 +135,10 @@ function ArticleCard({ article }: { article: ArticleCard }) {
       </div>
 
       {/* ── タイトル ──────────────────────────────── */}
+      {/* titleJa が存在すればGemini生成の日本語タイトルを優先表示する。
+          なければ元の英語タイトルにフォールバックする。 */}
       <h2 className="mb-4 text-base font-bold leading-snug text-gray-100 group-hover:text-white">
-        {article.title}
+        {article.titleJa ?? article.title}
       </h2>
 
       {/* ── AI 要約 ───────────────────────────────── */}

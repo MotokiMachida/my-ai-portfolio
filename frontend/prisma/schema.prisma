@@ -18,6 +18,7 @@ model Article {
   id           String    @id @default(cuid())
   url          String    @unique // URLはRFC的に一意。重複保存防止のキーとして使用（titleは微妙に変わるケースがあり不適）
   title        String
+  titleJa      String?   // Gemini が生成した日本語タイトル。元の英語タイトルを保持しつつ表示用に使用
   content      String?   // 記事本文。News APIによっては取得できない場合があるため nullable
   summary      String?   // Gemini による AI要約結果。summarized ステータス移行後に格納
   status       Status    @default(pending)
