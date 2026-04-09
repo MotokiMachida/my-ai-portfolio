@@ -24,6 +24,7 @@ interface BatchSyncResult {
   errors: number;
   titles: string[];
   message: string;
+  quotaExceeded?: boolean;
 }
 
 // --- コンポーネント ---
@@ -35,7 +36,8 @@ export default function SyncButton() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isBatching, setIsBatching] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [isError, setIsError] = useState(false);
+  // メッセージの種類: 'success' | 'error' | 'warning'（クォータ超過時は黄色で表示）
+  const [messageType, setMessageType] = useState<'success' | 'error' | 'warning'>('success');
 
   // C# の INavigationService に相当
   const router = useRouter();
@@ -50,7 +52,7 @@ export default function SyncButton() {
     if (isSyncing || isBatching) return;
     setIsSyncing(true);
     setStatusMessage(null);
-    setIsError(false);
+    setMessageType('success');
 
     try {
       const res = await fetch('/api/sync', { method: 'POST' });
@@ -59,16 +61,17 @@ export default function SyncButton() {
       if (!res.ok) {
         const errorMsg = 'error' in data ? data.error : '不明なエラー';
         setStatusMessage(`エラー: ${errorMsg}`);
-        setIsError(true);
+        setMessageType('error');
         return;
       }
 
       setStatusMessage((data as SyncResult).message);
-      router.refresh(); // サーバーコンポーネントを再レンダリングして記事一覧を更新
+      setMessageType('success');
+      router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setStatusMessage(`ネットワークエラー: ${message}`);
-      setIsError(true);
+      setMessageType('error');
     } finally {
       setIsSyncing(false);
     }
@@ -85,7 +88,7 @@ export default function SyncButton() {
     if (isSyncing || isBatching) return;
     setIsBatching(true);
     setStatusMessage('全件処理中... しばらくお待ちください');
-    setIsError(false);
+    setMessageType('success');
 
     try {
       const res = await fetch('/api/sync/batch', { method: 'POST' });
@@ -94,16 +97,19 @@ export default function SyncButton() {
       if (!res.ok) {
         const errorMsg = 'error' in data ? data.error : '不明なエラー';
         setStatusMessage(`エラー: ${errorMsg}`);
-        setIsError(true);
+        setMessageType('error');
         return;
       }
 
-      setStatusMessage((data as BatchSyncResult).message);
+      const result = data as BatchSyncResult;
+      setStatusMessage(result.message);
+      // クォータ超過は警告（黄色）、正常完了は緑で表示する
+      setMessageType(result.quotaExceeded ? 'warning' : 'success');
       router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setStatusMessage(`ネットワークエラー: ${message}`);
-      setIsError(true);
+      setMessageType('error');
     } finally {
       setIsBatching(false);
     }
@@ -170,9 +176,13 @@ export default function SyncButton() {
         </button>
       </div>
 
-      {/* 実行結果メッセージ */}
+      {/* 実行結果メッセージ: 成功=緑 / 警告（クォータ超過）=黄 / エラー=赤 */}
       {statusMessage && (
-        <p className={`text-xs ${isError ? 'text-red-400' : 'text-green-400'}`}>
+        <p className={`max-w-xs text-right text-xs ${
+          messageType === 'error' ? 'text-red-400' :
+          messageType === 'warning' ? 'text-yellow-400' :
+          'text-green-400'
+        }`}>
           {statusMessage}
         </p>
       )}

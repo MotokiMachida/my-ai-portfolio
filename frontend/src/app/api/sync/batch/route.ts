@@ -41,6 +41,8 @@ interface BatchSyncResult {
   titles: string[];
   /** 完了メッセージ */
   message: string;
+  /** Gemini 無料枠上限に達したか */
+  quotaExceeded?: boolean;
 }
 
 // --- POSTハンドラ ---
@@ -110,9 +112,25 @@ export async function POST(): Promise<NextResponse> {
       processed++;
       titles.push(result.titleJa);
     } catch (err) {
-      // 個別記事のエラーはスキップして次の記事を処理する。
-      // 1件のエラーでバッチ全体を止めないための設計。
       const message = err instanceof Error ? err.message : String(err);
+
+      // 429 (RESOURCE_EXHAUSTED) は Gemini の無料枠上限到達を意味する。
+      // 残りの記事は status を変えずに pending のまま残し、処理を中断する。
+      // エラー記事として汚染しないことで、翌日以降に再実行できる状態を保つ。
+      if (message.includes('429') || message.includes('RESOURCE_EXHAUSTED') || message.includes('quota')) {
+        const remaining = pendingArticles.length - i;
+        const batchResult: BatchSyncResult = {
+          processed,
+          errors,
+          titles,
+          message: `⚠️ Gemini 無料枠(20件/日)に達しました。${processed}件処理済み、残り${remaining}件は明日以降に実行してください。`,
+          quotaExceeded: true,
+        };
+        return NextResponse.json(batchResult);
+      }
+
+      // 429 以外のエラーはスキップして次の記事を処理する。
+      // 1件のエラーでバッチ全体を止めないための設計。
       await prisma.article.update({
         where: { id: target.id },
         data: { status: 'error', errorMessage: message.slice(0, 500) },
