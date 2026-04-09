@@ -47,14 +47,22 @@ export interface ArticleInput {
 // --- 定数定義 ---
 
 /**
- * 検索キーワード。
+ * ITエンジニア向け検索キーワード。
+ *
  * OR でつなぐことで複数トピックを一度のリクエストでカバーする。
  * top-headlines ではなく everything エンドポイントを使う理由:
  * top-headlines はカテゴリ・国単位の取得のみで、技術キーワードでの絞り込みができない。
  * everything はキーワード検索に対応しており、エンジニア向け記事に特化できる。
+ *
+ * キーワード選定方針:
+ * - プログラミング言語・フレームワークに限定し、ビジネス記事が混入しにくい具体的な技術名を使う
+ * - "AI" 単体は範囲が広すぎるため "LLM" / "generative AI" など技術文脈に限定する
+ * - "-sports -entertainment" のような除外指定は News API 無料プランで機能しないため使わない
  */
 const TECH_QUERY =
-  'TypeScript OR React OR Python OR "Next.js" OR "machine learning" OR "LLM"';
+  'TypeScript OR JavaScript OR "Next.js" OR "Node.js" OR React OR Python OR Rust OR Go OR ' +
+  'Kubernetes OR Docker OR "open source" OR LLM OR "large language model" OR ' +
+  '"generative AI" OR "vector database" OR "GitHub Copilot" OR "code review" OR DevOps';
 
 // --- ダミーデータ ---
 // NEWS_API_KEY が未設定の場合でもテスト・開発が進められるよう用意する。

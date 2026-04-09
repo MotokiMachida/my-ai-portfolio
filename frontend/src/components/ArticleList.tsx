@@ -8,7 +8,7 @@
 // インタラクティブな状態管理に useState/useMemo が必要なため。
 // データ取得は Server Component (page.tsx) が担い、このコンポーネントはUI状態のみを管理する。
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 // --- 型定義 ---
@@ -113,7 +113,9 @@ function ArticleCard({
         <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400 ring-1 ring-blue-500/20">
           {article.source ?? 'Unknown'}
         </span>
-        <time className="text-xs text-gray-600" dateTime={article.publishedAt ?? undefined}>
+        {/* suppressHydrationWarning: new Date() の値がサーバーとクライアントで異なりハイドレーション
+            エラーが起きるため抑制する。表示上の問題はなくクライアント側の値が正しい。 */}
+        <time suppressHydrationWarning className="text-xs text-gray-600" dateTime={article.publishedAt ?? undefined}>
           {formatDate(article.publishedAt)}
         </time>
       </div>
@@ -265,6 +267,17 @@ export default function ArticleList({ articles }: { articles: ArticleItem[] }) {
   const allChecked = filtered.length > 0 && selected.size === filtered.length;
   const someChecked = selected.size > 0 && !allChecked;
 
+  // indeterminate 状態の管理。
+  // HTML の indeterminate プロパティは JSX の prop で直接指定できないため ref + useEffect で設定する。
+  // inline ref callback では someChecked のクロージャが古い値を参照するケースがあるため
+  // useEffect で明示的に同期する方が安全。
+  const checkboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = someChecked;
+    }
+  }, [someChecked]);
+
   return (
     <div>
       {/* ── 検索・操作バー ────────────────────────── */}
@@ -299,13 +312,9 @@ export default function ArticleList({ articles }: { articles: ArticleItem[] }) {
           {/* 全選択チェックボックス */}
           <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-500 select-none">
             <input
+              ref={checkboxRef}
               type="checkbox"
               checked={allChecked}
-              ref={(el) => {
-                // indeterminate 状態（一部選択）を設定する。
-                // HTML の indeterminate は JSX の prop で直接指定できないため ref を使う。
-                if (el) el.indeterminate = someChecked;
-              }}
               onChange={toggleAll}
               className="h-4 w-4 cursor-pointer rounded border-gray-600 bg-gray-800 accent-blue-500"
             />
