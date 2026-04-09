@@ -4,6 +4,7 @@
 // これにより余分なネットワークラウンドトリップを排除し、初期表示を高速化できる。
 
 import { prisma } from '../../lib/db';
+import SyncButton from '../components/SyncButton';
 
 // --- 型定義 ---
 
@@ -222,10 +223,13 @@ export default async function Home() {
                 <p className="text-[10px] text-gray-500">Powered by Gemini AI</p>
               </div>
             </div>
-            {/* 件数バッジ */}
-            <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-400">
-              {articles.length} 件
-            </span>
+            {/* 右側: 件数バッジ＋取得ボタン */}
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-400">
+                {articles.length} 件
+              </span>
+              <SyncButton />
+            </div>
           </div>
         </div>
       </header>
